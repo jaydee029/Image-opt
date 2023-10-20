@@ -1,4 +1,6 @@
-const {axios}=require("axios")
+const fs=require("fs")
+const path=require("path")
+const axios=require("axios")
 const {JSDOM}=require("jsdom");
 
 function NormalizeURL(url){                                  //normalizing the url so that all urls are deemed to be same
@@ -10,14 +12,12 @@ function NormalizeURL(url){                                  //normalizing the u
     return fullurl
 }
 
+
 async function pagecrawler(base_url,current_url,totalpages={}){
-    
 
     const baseobject=new URL(base_url)
     const currentobject =new URL(current_url)
     if(currentobject.hostname!==baseobject.hostname){             
-        //totalpages[previous_url].externalurls.push(currentobject.href)
-        //console.log(totalpages)
         console.log("External link, exiting...")
         return totalpages
     }
@@ -25,19 +25,11 @@ async function pagecrawler(base_url,current_url,totalpages={}){
     const normalizeurl=NormalizeURL(current_url)
 
     if (totalpages.hasOwnProperty(normalizeurl)){                              //if the page has already been traversed this implies an entry 
-        totalpages[normalizeurl]++       
+        //cdtotalpages[normalizeurl]++       
         //console.log(totalpages)                         // already exists,hence updating the entry and returning the func
         return totalpages
     }
 
-    /*if (totalpages[normalizeurl][0]>0){                              //if the page has already been traversed this implies an entry 
-        totalpages[normalizeurl][0]++                                // already exists,hence updating the entry and returning the func
-        return totalpages
-    }*/
-    /*totalpages[normalizeurl]=[]  
-    totalpages[normalizeurl][0]=1   
-    totalpages[normalizeurl][1]=[]
-    totalpages[normalizeurl][2]=[]    */
     totalpages[normalizeurl]=1
     console.log(`Now crawling ${current_url}...`)                             // creating entry for new page
     let htmlbody=''
@@ -48,7 +40,7 @@ async function pagecrawler(base_url,current_url,totalpages={}){
             totalpages[normalizeurl].push(current_url)
             return totalpages
         }
-        
+
         const type=webpage.headers.get('content-type')
         if(!type.includes('text/html')){
             console.log("Doesn't contain text/html content" )
@@ -60,12 +52,16 @@ async function pagecrawler(base_url,current_url,totalpages={}){
     catch(err){
         console.log(err.message)
     } 
+
     const nextpages=getHTMLURLs(htmlbody,base_url)                 //extracts all urls from the current html body of the page
+    const images=getIMAGEURLs(htmlbody,base_url)
+    
+    extractImages(images,normalizeurl)
+
     for(const page of nextpages){
         previous_url=normalizeurl
         totalpages=await pagecrawler(base_url,page,totalpages,previous_url)           //calling recursive func on all the links in all further pages
     }
-    //console.log(totalpages)
   
     return totalpages
 }
@@ -120,5 +116,35 @@ function getHTMLURLs(htmlbdy,base){                  //extracts all urls from th
         }
     }
     return urls
+
+}
+
+
+async function extractImages(Images,Url){
+    
+    fs.mkdir(path.join(__dirname,Url.slice(0,8)),{recursive:true},(err)=>{
+        if (err){
+            console.log("Directory not created",err)
+        }
+        else{
+            console.log("Directory created")
+        }
+    })
+
+    for (const img of Images){
+        const res=await axios.get(img,{responseType:ArrayBuffer})
+
+        if (res.status==200){
+            console.log(`Image ${img} fetched succesfully`)
+
+
+
+            fs.writeFile(`${img.slice(0,8)}.jpg`,/*imagename*/)
+        }
+        else{
+            console.log(`Image ${img} couldn't be fetched`)
+        }
+
+    }
 
 }
