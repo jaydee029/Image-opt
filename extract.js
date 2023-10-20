@@ -1,4 +1,4 @@
-const puppeteer=require("puppeteer");
+const {axios}=require("axios")
 const {JSDOM}=require("jsdom");
 
 function NormalizeURL(url){                                  //normalizing the url so that all urls are deemed to be same
@@ -10,6 +10,92 @@ function NormalizeURL(url){                                  //normalizing the u
     return fullurl
 }
 
+async function pagecrawler(base_url,current_url,totalpages={}){
+    
+
+    const baseobject=new URL(base_url)
+    const currentobject =new URL(current_url)
+    if(currentobject.hostname!==baseobject.hostname){             
+        //totalpages[previous_url].externalurls.push(currentobject.href)
+        //console.log(totalpages)
+        console.log("External link, exiting...")
+        return totalpages
+    }
+
+    const normalizeurl=NormalizeURL(current_url)
+
+    if (totalpages.hasOwnProperty(normalizeurl)){                              //if the page has already been traversed this implies an entry 
+        totalpages[normalizeurl]++       
+        //console.log(totalpages)                         // already exists,hence updating the entry and returning the func
+        return totalpages
+    }
+
+    /*if (totalpages[normalizeurl][0]>0){                              //if the page has already been traversed this implies an entry 
+        totalpages[normalizeurl][0]++                                // already exists,hence updating the entry and returning the func
+        return totalpages
+    }*/
+    /*totalpages[normalizeurl]=[]  
+    totalpages[normalizeurl][0]=1   
+    totalpages[normalizeurl][1]=[]
+    totalpages[normalizeurl][2]=[]    */
+    totalpages[normalizeurl]=1
+    console.log(`Now crawling ${current_url}...`)                             // creating entry for new page
+    let htmlbody=''
+    try{                                                                   //extracting the html body of the page through a request
+        const webpage=await fetch(current_url)
+        if (webpage.status>399){
+            console.log(`HTTP error- code ${webpage.status}`)
+            totalpages[normalizeurl].push(current_url)
+            return totalpages
+        }
+        
+        const type=webpage.headers.get('content-type')
+        if(!type.includes('text/html')){
+            console.log("Doesn't contain text/html content" )
+            return totalpages
+        }
+        htmlbody=await webpage.text()
+
+    }
+    catch(err){
+        console.log(err.message)
+    } 
+    const nextpages=getHTMLURLs(htmlbody,base_url)                 //extracts all urls from the current html body of the page
+    for(const page of nextpages){
+        previous_url=normalizeurl
+        totalpages=await pagecrawler(base_url,page,totalpages,previous_url)           //calling recursive func on all the links in all further pages
+    }
+    //console.log(totalpages)
+  
+    return totalpages
+}
+
+
+function getIMAGEURLs(htmlbdy,base){                  //extracts all urls from the html body and pushes them into an array
+    const urls=[]
+    const doc=new JSDOM(htmlbdy)
+    const elements=doc.window.document.querySelectorAll('img')
+    for(const element of elements){
+        if(element.getAttribute("src").slice(0,1)==='/'){
+            try{
+                urls.push(new URL(element.getAttribute("src"),base).href)                   //converts relative urls to absolute urls
+            }
+            catch(error){
+                console.log(`${error.message}:${element.getAttribute("src")}`)
+            }
+        }
+        else{
+            try{urls.push(new URL(element.getAttribute("src")).href)
+            }
+            catch(error){
+                console.log(`${error.message}:${element.getAttribute("src")}`)
+            }
+
+        }
+    }
+    return urls
+
+}
 
 function getHTMLURLs(htmlbdy,base){                  //extracts all urls from the html body and pushes them into an array
     const urls=[]
