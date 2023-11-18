@@ -13,7 +13,7 @@ function NormalizeURL(url){                                  //normalizing the u
 }
 
 
-async function pagecrawler(base_url,current_url,totalpages={}){
+async function pagecrawler(base_url,current_url,totalpages){
 
     const baseobject=new URL(base_url)
     const currentobject =new URL(current_url)
@@ -24,20 +24,17 @@ async function pagecrawler(base_url,current_url,totalpages={}){
 
     const normalizeurl=NormalizeURL(current_url)
 
-    if (totalpages.hasOwnProperty(normalizeurl)){                              //if the page has already been traversed this implies an entry 
-        //cdtotalpages[normalizeurl]++       
-        //console.log(totalpages)                         // already exists,hence updating the entry and returning the func
+    if (totalpages.includes(normalizeurl)){                              //if the page has already been traversed this implies an entry 
         return totalpages
     }
 
-    totalpages[normalizeurl]=1
+    totalpages.push(normalizeurl)
     console.log(`Now crawling ${current_url}...`)                             // creating entry for new page
     let htmlbody=''
     try{                                                                   //extracting the html body of the page through a request
         const webpage=await fetch(current_url)
         if (webpage.status>399){
             console.log(`HTTP error- code ${webpage.status}`)
-            totalpages[normalizeurl].push(current_url)
             return totalpages
         }
 
@@ -138,7 +135,7 @@ async function extractImages(Images,Url){
             console.log(`Image ${img} fetched succesfully`)
 
 
-
+            
             fs.writeFile(`${img.slice(0,8)}.jpg`,/*imagename*/)
         }
         else{
